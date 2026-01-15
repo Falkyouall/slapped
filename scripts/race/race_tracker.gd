@@ -132,6 +132,10 @@ func get_leader() -> Vehicle:
 func get_lap(vehicle: Vehicle) -> int:
 	return lap_counts.get(vehicle, 0)
 
+## Gibt alle registrierten Fahrzeuge zurück
+func get_vehicles() -> Array[Vehicle]:
+	return vehicles
+
 ## Muss jeden Frame aufgerufen werden um Runden zu tracken
 func _process(_delta: float) -> void:
 	_update_tracking()

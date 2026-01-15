@@ -114,10 +114,12 @@ func _check_out_of_bounds() -> void:
 		return
 
 	var viewport_size = get_viewport_rect().size
-	var cam_pos = camera.global_position
-	var zoom_factor = camera.zoom.x
+	# Verwende Ziel-Position und Ziel-Zoom für konsistente Berechnung
+	# (die Kamera berechnet den Zoom basierend auf der Ziel-Position)
+	var cam_pos = camera.get_bounds_center()
+	var zoom_factor = camera.get_target_zoom()
 
-	# Sichtbare Grenzen berechnen (basierend auf tatsächlicher Kamera-Position)
+	# Sichtbare Grenzen berechnen (basierend auf Ziel-Zoom)
 	var half_width = (viewport_size.x / 2.0) / zoom_factor + out_of_bounds_margin
 	var half_height = (viewport_size.y / 2.0) / zoom_factor + out_of_bounds_margin
 
@@ -125,7 +127,7 @@ func _check_out_of_bounds() -> void:
 		if vehicle.is_eliminated or vehicle.respawn_immunity:
 			continue
 
-		# Distanz zur Kamera prüfen
+		# Distanz zur Ziel-Kameraposition prüfen
 		var rel_pos = vehicle.global_position - cam_pos
 
 		if abs(rel_pos.x) > half_width or abs(rel_pos.y) > half_height:
