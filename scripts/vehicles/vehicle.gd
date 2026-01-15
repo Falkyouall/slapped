@@ -1,7 +1,7 @@
-extends CharacterBody2D
+extends CharacterBody3D
 class_name Vehicle
-## Basis-Fahrzeug mit Arcade-Steuerung
-## Unterstützt Beschleunigen, Bremsen, Lenken
+## Basis-Fahrzeug mit Arcade-Steuerung (3D)
+## Bewegung auf X/Z-Ebene, Y = Höhe (konstant)
 
 signal destroyed()
 signal hit(damage: float)
@@ -14,10 +14,10 @@ var is_eliminated: bool = false
 var respawn_immunity: bool = false
 
 # Bewegungs-Parameter
-@export var max_speed: float = 400.0
-@export var acceleration: float = 600.0
-@export var brake_power: float = 800.0
-@export var friction: float = 200.0
+@export var max_speed: float = 40.0  # Angepasst für 3D-Skalierung
+@export var acceleration: float = 60.0
+@export var brake_power: float = 80.0
+@export var friction: float = 20.0
 @export var turn_speed: float = 3.5
 @export var drift_factor: float = 0.95  # 1.0 = kein Drift, 0.0 = maximaler Drift
 
@@ -73,7 +73,7 @@ func _handle_input(delta: float) -> void:
 
 	# Lenkung (nur wenn in Bewegung)
 	steering_input = 0.0
-	if abs(current_speed) > 10:
+	if abs(current_speed) > 1:
 		if Input.is_action_pressed(input_left):
 			steering_input = -1.0
 		elif Input.is_action_pressed(input_right):
@@ -84,14 +84,15 @@ func _handle_input(delta: float) -> void:
 			steering_input *= -1
 
 func _apply_movement(delta: float) -> void:
-	# Rotation basierend auf Geschwindigkeit und Lenkung
+	# Rotation um Y-Achse (horizontales Drehen)
+	# In 3D ist positive Y-Rotation im Uhrzeigersinn, daher negieren
 	var turn_amount = steering_input * turn_speed * delta
 	# Langsamere Lenkung bei höherer Geschwindigkeit für besseres Gefühl
 	var speed_factor = 1.0 - (abs(current_speed) / max_speed) * 0.3
-	rotation += turn_amount * speed_factor
+	rotation.y -= turn_amount * speed_factor
 
-	# Fahrtrichtung berechnen
-	var forward = Vector2.UP.rotated(rotation)
+	# Fahrtrichtung berechnen (vorwärts ist -Z in Godot 3D)
+	var forward = -transform.basis.z
 
 	# Aktuelle Bewegung mit Drift-Faktor mischen
 	var target_velocity = forward * current_speed
@@ -111,8 +112,8 @@ func lose_life() -> void:
 		is_eliminated = true
 		destroyed.emit()
 
-func reset_to_spawn(spawn_pos: Vector2, spawn_rot: float = 0.0) -> void:
-	position = spawn_pos
-	rotation = spawn_rot
-	velocity = Vector2.ZERO
+func reset_to_spawn(spawn_pos: Vector3, spawn_rot: float = 0.0) -> void:
+	global_position = spawn_pos
+	rotation.y = spawn_rot
+	velocity = Vector3.ZERO
 	current_speed = 0

@@ -2,9 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/vehicles/dynamic_camera.gd" id="1_camera"]
 
-[node name="DynamicCamera" type="Camera2D"]
+[node name="DynamicCamera" type="Camera3D"]
+transform = Transform3D(1, 0, 0, 0, 0.573576, 0.819152, 0, -0.819152, 0.573576, 0, 50, 35)
+fov = 60.0
 script = ExtResource("1_camera")
-min_zoom = 0.5
-max_zoom = 1.5
-zoom_margin = 150.0
-smooth_speed = 5.0

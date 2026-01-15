@@ -4,7 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://dkn4xp7q2m8rv" path="res://scenes/tracks/test_track.tscn" id="2_track"]
 [ext_resource type="PackedScene" uid="uid://c8kmn3x5vp4qy" path="res://scenes/ui/hud.tscn" id="3_hud"]
 
-[node name="Game" type="Node2D"]
+[node name="Game" type="Node3D"]
 script = ExtResource("1_game")
 player_count = 2
 

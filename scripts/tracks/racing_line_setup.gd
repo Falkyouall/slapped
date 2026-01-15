@@ -1,11 +1,11 @@
-extends Path2D
+extends Path3D
 class_name RacingLineSetup
-## Definiert die Racing-Line für Position-Tracking
-## Dieses Script wird an den Path2D Node im Track angehängt
+## Definiert die Racing-Line für Position-Tracking (3D)
+## Dieses Script wird an den Path3D Node im Track angehängt
 
 ## Die Punkte der Racing-Line (Strecken-Mittellinie)
 ## Gegen den Uhrzeigersinn, erster Punkt = Start/Ziel
-@export var racing_points: Array[Vector2] = []
+@export var racing_points: Array[Vector3] = []
 
 func _ready() -> void:
 	_setup_curve()
@@ -16,7 +16,7 @@ func _setup_curve() -> void:
 		return
 
 	if not curve:
-		curve = Curve2D.new()
+		curve = Curve3D.new()
 
 	curve.clear_points()
 

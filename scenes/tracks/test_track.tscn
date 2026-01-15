@@ -1,190 +1,147 @@
-[gd_scene load_steps=6 format=3 uid="uid://dkn4xp7q2m8rv"]
+[gd_scene load_steps=8 format=3 uid="uid://dkn4xp7q2m8rv"]
 
 [ext_resource type="Script" path="res://scripts/tracks/racing_line_setup.gd" id="racing_line_script"]
 
-[sub_resource type="RectangleShape2D" id="shape_outer_long"]
-size = Vector2(2600, 40)
+[sub_resource type="BoxShape3D" id="shape_outer_long"]
+size = Vector3(260, 4, 4)
 
-[sub_resource type="RectangleShape2D" id="shape_outer_short"]
-size = Vector2(1600, 40)
+[sub_resource type="BoxShape3D" id="shape_outer_short"]
+size = Vector3(160, 4, 4)
 
-[sub_resource type="RectangleShape2D" id="shape_inner_long"]
-size = Vector2(1400, 40)
+[sub_resource type="BoxShape3D" id="shape_inner_long"]
+size = Vector3(140, 4, 4)
 
-[sub_resource type="RectangleShape2D" id="shape_inner_short"]
-size = Vector2(600, 40)
+[sub_resource type="BoxShape3D" id="shape_inner_short"]
+size = Vector3(60, 4, 4)
 
-[node name="TestTrack" type="Node2D"]
+[sub_resource type="BoxMesh" id="wall_mesh"]
+size = Vector3(1, 4, 4)
 
-[node name="Ground" type="Node2D" parent="."]
+[sub_resource type="Environment" id="env"]
+background_mode = 1
+background_color = Color(0.15, 0.15, 0.2, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.4, 0.4, 0.5, 1)
 
-[node name="Asphalt" type="ColorRect" parent="Ground"]
-offset_left = -1400.0
-offset_top = -900.0
-offset_right = 1400.0
-offset_bottom = 900.0
-color = Color(0.12, 0.12, 0.14, 1)
+[node name="TestTrack" type="Node3D"]
 
-[node name="OuterWalls" type="Node2D" parent="."]
+[node name="Ground" type="Node3D" parent="."]
 
-[node name="TopWall" type="StaticBody2D" parent="OuterWalls"]
-position = Vector2(0, -880)
+[node name="Floor" type="CSGBox3D" parent="Ground"]
+size = Vector3(280, 0.5, 180)
 
-[node name="Collision" type="CollisionShape2D" parent="OuterWalls/TopWall"]
+[node name="OuterWalls" type="Node3D" parent="."]
+
+[node name="TopWall" type="StaticBody3D" parent="OuterWalls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -88)
+
+[node name="Collision" type="CollisionShape3D" parent="OuterWalls/TopWall"]
 shape = SubResource("shape_outer_long")
 
-[node name="Visual" type="ColorRect" parent="OuterWalls/TopWall"]
-offset_left = -1300.0
-offset_top = -20.0
-offset_right = 1300.0
-offset_bottom = 20.0
-color = Color(0.6, 0.15, 0.15, 1)
+[node name="Visual" type="CSGBox3D" parent="OuterWalls/TopWall"]
+size = Vector3(260, 4, 4)
 
-[node name="BottomWall" type="StaticBody2D" parent="OuterWalls"]
-position = Vector2(0, 880)
+[node name="BottomWall" type="StaticBody3D" parent="OuterWalls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 88)
 
-[node name="Collision" type="CollisionShape2D" parent="OuterWalls/BottomWall"]
+[node name="Collision" type="CollisionShape3D" parent="OuterWalls/BottomWall"]
 shape = SubResource("shape_outer_long")
 
-[node name="Visual" type="ColorRect" parent="OuterWalls/BottomWall"]
-offset_left = -1300.0
-offset_top = -20.0
-offset_right = 1300.0
-offset_bottom = 20.0
-color = Color(0.6, 0.15, 0.15, 1)
+[node name="Visual" type="CSGBox3D" parent="OuterWalls/BottomWall"]
+size = Vector3(260, 4, 4)
 
-[node name="LeftWall" type="StaticBody2D" parent="OuterWalls"]
-position = Vector2(-1380, 0)
-rotation = 1.5708
+[node name="LeftWall" type="StaticBody3D" parent="OuterWalls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -138, 2, 0)
 
-[node name="Collision" type="CollisionShape2D" parent="OuterWalls/LeftWall"]
+[node name="Collision" type="CollisionShape3D" parent="OuterWalls/LeftWall"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 0, 0)
 shape = SubResource("shape_outer_short")
 
-[node name="Visual" type="ColorRect" parent="OuterWalls/LeftWall"]
-offset_left = -800.0
-offset_top = -20.0
-offset_right = 800.0
-offset_bottom = 20.0
-color = Color(0.6, 0.15, 0.15, 1)
+[node name="Visual" type="CSGBox3D" parent="OuterWalls/LeftWall"]
+size = Vector3(4, 4, 160)
 
-[node name="RightWall" type="StaticBody2D" parent="OuterWalls"]
-position = Vector2(1380, 0)
-rotation = 1.5708
+[node name="RightWall" type="StaticBody3D" parent="OuterWalls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 138, 2, 0)
 
-[node name="Collision" type="CollisionShape2D" parent="OuterWalls/RightWall"]
+[node name="Collision" type="CollisionShape3D" parent="OuterWalls/RightWall"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 0, 0)
 shape = SubResource("shape_outer_short")
 
-[node name="Visual" type="ColorRect" parent="OuterWalls/RightWall"]
-offset_left = -800.0
-offset_top = -20.0
-offset_right = 800.0
-offset_bottom = 20.0
-color = Color(0.6, 0.15, 0.15, 1)
+[node name="Visual" type="CSGBox3D" parent="OuterWalls/RightWall"]
+size = Vector3(4, 4, 160)
 
-[node name="InnerWalls" type="Node2D" parent="."]
+[node name="InnerWalls" type="Node3D" parent="."]
 
-[node name="InnerIsland" type="ColorRect" parent="InnerWalls"]
-offset_left = -700.0
-offset_top = -350.0
-offset_right = 700.0
-offset_bottom = 350.0
-color = Color(0.2, 0.35, 0.2, 1)
+[node name="InnerIsland" type="CSGBox3D" parent="InnerWalls"]
+size = Vector3(140, 1, 70)
 
-[node name="InnerTop" type="StaticBody2D" parent="InnerWalls"]
-position = Vector2(0, -370)
+[node name="InnerTop" type="StaticBody3D" parent="InnerWalls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -37)
 
-[node name="Collision" type="CollisionShape2D" parent="InnerWalls/InnerTop"]
+[node name="Collision" type="CollisionShape3D" parent="InnerWalls/InnerTop"]
 shape = SubResource("shape_inner_long")
 
-[node name="Visual" type="ColorRect" parent="InnerWalls/InnerTop"]
-offset_left = -700.0
-offset_top = -20.0
-offset_right = 700.0
-offset_bottom = 20.0
-color = Color(0.5, 0.5, 0.5, 1)
+[node name="Visual" type="CSGBox3D" parent="InnerWalls/InnerTop"]
+size = Vector3(140, 4, 4)
 
-[node name="InnerBottom" type="StaticBody2D" parent="InnerWalls"]
-position = Vector2(0, 370)
+[node name="InnerBottom" type="StaticBody3D" parent="InnerWalls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 37)
 
-[node name="Collision" type="CollisionShape2D" parent="InnerWalls/InnerBottom"]
+[node name="Collision" type="CollisionShape3D" parent="InnerWalls/InnerBottom"]
 shape = SubResource("shape_inner_long")
 
-[node name="Visual" type="ColorRect" parent="InnerWalls/InnerBottom"]
-offset_left = -700.0
-offset_top = -20.0
-offset_right = 700.0
-offset_bottom = 20.0
-color = Color(0.5, 0.5, 0.5, 1)
+[node name="Visual" type="CSGBox3D" parent="InnerWalls/InnerBottom"]
+size = Vector3(140, 4, 4)
 
-[node name="InnerLeft" type="StaticBody2D" parent="InnerWalls"]
-position = Vector2(-720, 0)
-rotation = 1.5708
+[node name="InnerLeft" type="StaticBody3D" parent="InnerWalls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72, 2, 0)
 
-[node name="Collision" type="CollisionShape2D" parent="InnerWalls/InnerLeft"]
+[node name="Collision" type="CollisionShape3D" parent="InnerWalls/InnerLeft"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 0, 0)
 shape = SubResource("shape_inner_short")
 
-[node name="Visual" type="ColorRect" parent="InnerWalls/InnerLeft"]
-offset_left = -350.0
-offset_top = -20.0
-offset_right = 350.0
-offset_bottom = 20.0
-color = Color(0.5, 0.5, 0.5, 1)
+[node name="Visual" type="CSGBox3D" parent="InnerWalls/InnerLeft"]
+size = Vector3(4, 4, 60)
 
-[node name="InnerRight" type="StaticBody2D" parent="InnerWalls"]
-position = Vector2(720, 0)
-rotation = 1.5708
+[node name="InnerRight" type="StaticBody3D" parent="InnerWalls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 72, 2, 0)
 
-[node name="Collision" type="CollisionShape2D" parent="InnerWalls/InnerRight"]
+[node name="Collision" type="CollisionShape3D" parent="InnerWalls/InnerRight"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 0, 0)
 shape = SubResource("shape_inner_short")
 
-[node name="Visual" type="ColorRect" parent="InnerWalls/InnerRight"]
-offset_left = -350.0
-offset_top = -20.0
-offset_right = 350.0
-offset_bottom = 20.0
-color = Color(0.5, 0.5, 0.5, 1)
+[node name="Visual" type="CSGBox3D" parent="InnerWalls/InnerRight"]
+size = Vector3(4, 4, 60)
 
-[node name="StartLine" type="Node2D" parent="."]
+[node name="StartLine" type="Node3D" parent="."]
 
-[node name="Line" type="ColorRect" parent="StartLine"]
-offset_left = 1050.0
-offset_top = -850.0
-offset_right = 1065.0
-offset_bottom = -400.0
-color = Color(1, 1, 1, 0.8)
+[node name="Line" type="CSGBox3D" parent="StartLine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105, 0.3, -62.5)
+size = Vector3(1.5, 0.1, 45)
 
-[node name="Checkers1" type="ColorRect" parent="StartLine"]
-offset_left = 1035.0
-offset_top = -850.0
-offset_right = 1050.0
-offset_bottom = -835.0
-color = Color(0, 0, 0, 1)
+[node name="SpawnPoints" type="Node3D" parent="."]
 
-[node name="Checkers2" type="ColorRect" parent="StartLine"]
-offset_left = 1065.0
-offset_top = -835.0
-offset_right = 1080.0
-offset_bottom = -820.0
-color = Color(0, 0, 0, 1)
+[node name="Spawn1" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 105, 0, -48)
 
-[node name="SpawnPoints" type="Node2D" parent="."]
+[node name="Spawn2" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 105, 0, -58)
 
-[node name="Spawn1" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(1050, -480)
-rotation = -1.5708
+[node name="Spawn3" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 105, 0, -68)
 
-[node name="Spawn2" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(1050, -580)
-rotation = -1.5708
+[node name="Spawn4" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 105, 0, -78)
 
-[node name="Spawn3" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(1050, -680)
-rotation = -1.5708
-
-[node name="Spawn4" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(1050, -780)
-rotation = -1.5708
-
-[node name="RacingLine" type="Path2D" parent="."]
+[node name="RacingLine" type="Path3D" parent="."]
 script = ExtResource("racing_line_script")
-racing_points = Array[Vector2]([Vector2(1050, -625), Vector2(0, -625), Vector2(-1050, -625), Vector2(-1050, 0), Vector2(-1050, 625), Vector2(0, 625), Vector2(1050, 625), Vector2(1050, 0)])
+racing_points = Array[Vector3]([Vector3(105, 0, -62.5), Vector3(0, 0, -62.5), Vector3(-105, 0, -62.5), Vector3(-105, 0, 0), Vector3(-105, 0, 62.5), Vector3(0, 0, 62.5), Vector3(105, 0, 62.5), Vector3(105, 0, 0)])
+
+[node name="Lighting" type="Node3D" parent="."]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Lighting"]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 50, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Lighting"]
+environment = SubResource("env")

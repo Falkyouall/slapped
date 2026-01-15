@@ -1,13 +1,13 @@
 extends Node
 class_name RaceTracker
-## Zentrales Modul für Rennposition-Tracking
-## Verwendet Path2D/Curve2D für präzises, streckenunabhängiges Tracking
+## Zentrales Modul für Rennposition-Tracking (3D)
+## Verwendet Path3D/Curve3D für präzises, streckenunabhängiges Tracking
 
 signal lap_completed(vehicle: Vehicle, lap: int)
 signal position_changed(vehicle: Vehicle, old_pos: int, new_pos: int)
 
-## Die Racing-Line (Path2D) die die Strecken-Mittellinie definiert
-@export var racing_line: Path2D
+## Die Racing-Line (Path3D) die die Strecken-Mittellinie definiert
+@export var racing_line: Path3D
 
 ## Schwellwert für Runden-Erkennung (wie viel % der Strecke als "Sprung" gilt)
 @export var lap_threshold: float = 0.4
@@ -18,7 +18,7 @@ var last_offsets: Dictionary = {}  # Vehicle -> float
 var last_positions: Dictionary = {}  # Vehicle -> int (Platzierung)
 
 var track_length: float = 0.0
-var _curve: Curve2D
+var _curve: Curve3D
 
 func _ready() -> void:
 	if racing_line and racing_line.curve:
@@ -26,12 +26,12 @@ func _ready() -> void:
 		track_length = _curve.get_baked_length()
 
 ## Initialisiert den Tracker mit Fahrzeugen und Racing-Line
-func setup(race_vehicles: Array[Vehicle], path: Path2D) -> void:
+func setup(race_vehicles: Array[Vehicle], path: Path3D) -> void:
 	vehicles = race_vehicles
 	racing_line = path
 
 	if not racing_line:
-		push_error("RaceTracker: racing_line ist NULL! Track braucht einen RacingLine Path2D Node.")
+		push_error("RaceTracker: racing_line ist NULL! Track braucht einen RacingLine Path3D Node.")
 		return
 
 	if not racing_line.curve or racing_line.curve.point_count == 0:
@@ -67,7 +67,7 @@ func _get_raw_offset(vehicle: Vehicle) -> float:
 	if not _curve or not is_instance_valid(vehicle):
 		return 0.0
 
-	# Konvertiere zu lokalen Koordinaten der Path2D
+	# Konvertiere zu lokalen Koordinaten der Path3D
 	var local_pos = racing_line.to_local(vehicle.global_position)
 	return _curve.get_closest_offset(local_pos)
 

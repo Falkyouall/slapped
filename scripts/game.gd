@@ -1,16 +1,16 @@
-extends Node2D
-## Hauptspielszene - Lädt Track und spawnt Spieler
+extends Node3D
+## Hauptspielszene - Lädt Track und spawnt Spieler (3D)
 
 const VehicleScene = preload("res://scenes/vehicles/vehicle.tscn")
 const CameraScene = preload("res://scenes/vehicles/dynamic_camera.tscn")
 
 @export var player_count: int = 2
-@export var out_of_bounds_margin: float = 100.0  # Extra Rand bevor Out-of-Bounds
+@export var out_of_bounds_margin: float = 8.0  # Extra Rand bevor Out-of-Bounds
 
 var camera: DynamicCamera
 var race_tracker: RaceTracker
 var vehicles: Array[Vehicle] = []
-var spawn_points: Array[Node2D] = []
+var spawn_points: Array[Node3D] = []
 var alive_count: int = 0
 var _is_restarting: bool = false  # Verhindert mehrfaches Triggern
 
@@ -50,12 +50,12 @@ func _spawn_players() -> void:
 
 func _init_systems() -> void:
 	# Racing-Line vom Track holen
-	var racing_line = $Track/RacingLine as Path2D
+	var racing_line = $Track/RacingLine as Path3D
 
 	if not racing_line:
 		push_error("Game: RacingLine nicht gefunden unter $Track/RacingLine!")
 		# Versuche alternative Pfade
-		racing_line = $Track.get_node_or_null("RacingLine") as Path2D
+		racing_line = $Track.get_node_or_null("RacingLine") as Path3D
 		if racing_line:
 			print("Game: RacingLine gefunden via get_node_or_null")
 
@@ -72,15 +72,9 @@ func _init_systems() -> void:
 	_init_camera_position()
 
 func _init_camera_position() -> void:
-	# Kamera direkt an Startposition setzen
-	if vehicles.size() > 0:
-		var first_vehicle = vehicles[0]
-		var forward_dir = Vector2.UP.rotated(first_vehicle.rotation)
-		camera.position_smoothing_enabled = false
-		camera.global_position = first_vehicle.global_position + forward_dir * camera.look_ahead
-		camera.zoom = Vector2(camera.default_zoom, camera.default_zoom)
-		await get_tree().process_frame
-		camera.position_smoothing_enabled = true
+	# Kamera initialisiert sich jetzt selbst im setup()
+	# Warte einen Frame um sicherzustellen dass alles geladen ist
+	await get_tree().process_frame
 
 func _give_start_immunity() -> void:
 	# Alle Spieler bekommen kurze Start-Immunität
@@ -95,13 +89,25 @@ func _give_start_immunity() -> void:
 func _create_vehicle(idx: int) -> Vehicle:
 	var vehicle = VehicleScene.instantiate()
 	vehicle.player_id = idx
-	vehicle.position = spawn_points[idx].position
-	vehicle.rotation = spawn_points[idx].rotation
-	vehicle.get_node("Sprite").modulate = player_colors[idx]
+
+	# ERST zum Baum hinzufügen, DANN Position setzen
+	$Track.add_child(vehicle)
+
+	# Position und Rotation vom Spawn-Point übernehmen
+	var spawn = spawn_points[idx]
+	vehicle.global_position = spawn.global_position
+	vehicle.rotation.y = spawn.rotation.y
+
+	# Farbe auf Material setzen
+	var body_mesh = vehicle.get_node("Body") as MeshInstance3D
+	if body_mesh:
+		var material = StandardMaterial3D.new()
+		material.albedo_color = player_colors[idx]
+		body_mesh.material_override = material
+
 	vehicle._setup_input_actions()
 	vehicle.destroyed.connect(_on_vehicle_destroyed.bind(idx))
 
-	$Track.add_child(vehicle)
 	vehicles.append(vehicle)
 	GameManager.register_player(vehicle)
 	return vehicle
@@ -113,24 +119,21 @@ func _check_out_of_bounds() -> void:
 	if GameManager.current_state != GameManager.GameState.PLAYING:
 		return
 
-	var viewport_size = get_viewport_rect().size
-	# Verwende Ziel-Position und Ziel-Zoom für konsistente Berechnung
-	# (die Kamera berechnet den Zoom basierend auf der Ziel-Position)
-	var cam_pos = camera.get_bounds_center()
-	var zoom_factor = camera.get_target_zoom()
-
-	# Sichtbare Grenzen berechnen (basierend auf Ziel-Zoom)
-	var half_width = (viewport_size.x / 2.0) / zoom_factor + out_of_bounds_margin
-	var half_height = (viewport_size.y / 2.0) / zoom_factor + out_of_bounds_margin
+	# Verwende die berechneten sichtbaren Grenzen der Kamera
+	var bounds = camera.get_visible_bounds()
+	var cam_center = bounds["center"]
+	var half_width = bounds["half_width"] + out_of_bounds_margin
+	var half_depth = bounds["half_depth"] + out_of_bounds_margin
 
 	for vehicle in vehicles:
 		if vehicle.is_eliminated or vehicle.respawn_immunity:
 			continue
 
-		# Distanz zur Ziel-Kameraposition prüfen
-		var rel_pos = vehicle.global_position - cam_pos
+		# Distanz zur Ziel-Kameraposition prüfen (nur X/Z)
+		var rel_pos = vehicle.global_position - cam_center
+		rel_pos.y = 0
 
-		if abs(rel_pos.x) > half_width or abs(rel_pos.y) > half_height:
+		if abs(rel_pos.x) > half_width or abs(rel_pos.z) > half_depth:
 			_handle_out_of_bounds(vehicle)
 
 func _handle_out_of_bounds(vehicle: Vehicle) -> void:
@@ -169,7 +172,8 @@ func _restart_race_from_start() -> void:
 			continue
 
 		vehicle.respawn_immunity = true
-		vehicle.reset_to_spawn(spawn_points[i].position, spawn_points[i].rotation)
+		var spawn = spawn_points[i]
+		vehicle.reset_to_spawn(spawn.global_position, spawn.rotation.y)
 
 	# RaceTracker zurücksetzen
 	if race_tracker:
@@ -210,18 +214,10 @@ func _end_current_round() -> void:
 	_start_new_round()
 
 func _reset_camera_to_start() -> void:
-	if vehicles.size() > 0:
-		var first_active: Vehicle = null
-		for v in vehicles:
-			if not v.is_eliminated:
-				first_active = v
-				break
-
-		if first_active:
-			var forward_dir = Vector2.UP.rotated(first_active.rotation)
-			camera.position_smoothing_enabled = false
-			camera.global_position = first_active.global_position + forward_dir * camera.look_ahead
-			camera.position_smoothing_enabled = true
+	# Kamera positioniert sich automatisch basierend auf allen Fahrzeugen
+	# Erzwinge sofortige Neupositionierung
+	if camera:
+		camera._initialize_from_vehicles()
 
 func _on_vehicle_destroyed(player_id: int) -> void:
 	GameManager.eliminate_player(player_id)
@@ -244,18 +240,15 @@ func _start_new_round() -> void:
 		vehicle.respawn_immunity = true  # Start-Immunität
 		vehicle.visible = true
 		vehicle.set_physics_process(true)
-		vehicle.reset_to_spawn(spawn_points[i].position, spawn_points[i].rotation)
+
+		var spawn = spawn_points[i]
+		vehicle.reset_to_spawn(spawn.global_position, spawn.rotation.y)
 
 	# RaceTracker Runden zurücksetzen
 	race_tracker.reset_laps()
 
 	# Kamera sofort an Startposition setzen
-	if vehicles.size() > 0:
-		var first_vehicle = vehicles[0]
-		var forward_dir = Vector2.UP.rotated(first_vehicle.rotation)
-		camera.position_smoothing_enabled = false
-		camera.global_position = first_vehicle.global_position + forward_dir * camera.look_ahead
-		camera.position_smoothing_enabled = true
+	_reset_camera_to_start()
 
 	alive_count = vehicles.size()
 	GameManager.current_state = GameManager.GameState.PLAYING
