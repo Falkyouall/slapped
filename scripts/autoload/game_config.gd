@@ -26,3 +26,4 @@ class_name GameConfig
 @export var vehicle_acceleration: float = 60.0
 @export var vehicle_brake_power: float = 80.0
 @export var vehicle_gravity: float = 40.0
+@export_range(0.0, 1.0) var vehicle_collision_bounce: float = 0.25

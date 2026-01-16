@@ -8,6 +8,7 @@
 size = Vector3(2.0, 1.0, 4.5)
 
 [node name="Vehicle" type="CharacterBody3D"]
+transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 0, 0, 0)
 script = ExtResource("1_vehicle")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]

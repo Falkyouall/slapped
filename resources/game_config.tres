@@ -17,3 +17,4 @@ vehicle_max_speed = 40.0
 vehicle_acceleration = 60.0
 vehicle_brake_power = 80.0
 vehicle_gravity = 40.0
+vehicle_collision_bounce = 0.25

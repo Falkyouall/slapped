@@ -45,7 +45,11 @@ var input_shoot: String = "shoot"
 var current_speed: float = 0.0
 var steering_input: float = 0.0
 
+# Externe Impulse (von Kollisionen mit anderen Fahrzeugen)
+var push_velocity: Vector3 = Vector3.ZERO
+
 func _ready() -> void:
+	add_to_group("vehicles")
 	lives = GameManager.config.max_lives
 	_setup_input_actions()
 
@@ -62,6 +66,14 @@ func _physics_process(delta: float) -> void:
 	_handle_input(delta)
 	_apply_movement(delta)
 	move_and_slide()
+	_handle_vehicle_collisions()
+	# Externe Impulse nach allem anderen anwenden und direkt bewegen
+	_apply_external_impulse(delta)
+
+func _apply_external_impulse(delta: float) -> void:
+	# Push-Velocity über Zeit abbauen (Reibung)
+	if push_velocity.length_squared() > 0.01:
+		push_velocity = push_velocity.move_toward(Vector3.ZERO, 25.0 * delta)
 
 func _handle_input(delta: float) -> void:
 	var cfg = GameManager.config
@@ -88,9 +100,6 @@ func _handle_input(delta: float) -> void:
 		elif Input.is_action_pressed(input_right):
 			steering_input = 1.0
 
-		# Lenkrichtung umkehren bei Rückwärtsfahrt
-		if current_speed < 0:
-			steering_input *= -1
 
 func _apply_movement(delta: float) -> void:
 	# Rotation um Y-Achse (horizontales Drehen)
@@ -98,6 +107,9 @@ func _apply_movement(delta: float) -> void:
 	var speed_factor = 1.0 - (abs(current_speed) / GameManager.config.vehicle_max_speed) * 0.3
 	# Lenkungs-Debuff bei Treffern anwenden
 	turn_amount *= get_steering_multiplier()
+	# Bei Rückwärtsfahrt: Lenkung umkehren damit links auch nach links fährt
+	if current_speed < 0:
+		turn_amount *= -1
 	rotation.y -= turn_amount * speed_factor
 
 	# Fahrtrichtung berechnen (vorwärts ist -Z in Godot 3D)
@@ -107,6 +119,10 @@ func _apply_movement(delta: float) -> void:
 	var target_velocity = forward * current_speed
 	velocity.x = lerpf(velocity.x, target_velocity.x, 1.0 - drift_factor + 0.05)
 	velocity.z = lerpf(velocity.z, target_velocity.z, 1.0 - drift_factor + 0.05)
+
+	# Push-Velocity von Kollisionen hinzufügen
+	velocity.x += push_velocity.x
+	velocity.z += push_velocity.z
 
 	# Vertikale Bewegung (Sprung-Physik)
 	if is_on_floor():
@@ -129,6 +145,44 @@ func _apply_movement(delta: float) -> void:
 
 	velocity.y = vertical_velocity
 
+func _handle_vehicle_collisions() -> void:
+	# Prüfe alle anderen Fahrzeuge auf Kollision
+	for other in get_tree().get_nodes_in_group("vehicles"):
+		if other == self or not other is Vehicle:
+			continue
+
+		var other_vehicle: Vehicle = other
+		var to_other = other_vehicle.global_position - global_position
+		to_other.y = 0
+		var dist = to_other.length()
+
+		# Kollisionsradius - Fahrzeug ist ca. 11x5 Einheiten (2.5x skaliert)
+		# Wir nutzen einen Durchschnittswert
+		var collision_dist = 14.0
+
+		if dist < collision_dist and dist > 0.1:
+			var overlap = collision_dist - dist
+			var dir = to_other.normalized()
+
+			# Meine Geschwindigkeit in Richtung des anderen
+			var my_speed_toward = velocity.dot(dir)
+
+			# Wenn ich mich auf den anderen zubewege (auch langsam)
+			if my_speed_toward > 0.5:
+				# Minimaler Schubser
+				var push_force = my_speed_toward * 0.005
+				other_vehicle.apply_collision_impulse(dir * push_force)
+
+				# Minimale Abbremsung
+				velocity -= dir * my_speed_toward * 0.02
+
+			# Separation um Überlappung zu verhindern
+			if overlap > 0:
+				global_position -= dir * overlap * 0.3
+
+func apply_collision_impulse(impulse: Vector3) -> void:
+	push_velocity += impulse
+
 func take_damage(amount: float) -> void:
 	hit.emit(amount)
 
@@ -146,6 +200,7 @@ func reset_to_spawn(spawn_pos: Vector3, spawn_rot: float = 0.0) -> void:
 	rotation.y = spawn_rot
 	velocity = Vector3.ZERO
 	current_speed = 0
+	push_velocity = Vector3.ZERO
 	# Waffe behalten, aber Treffer-Status zurücksetzen
 	hit_debuff_timer = 0.0
 	hit_jerk_accumulator = 0.0
