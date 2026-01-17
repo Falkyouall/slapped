@@ -2,6 +2,7 @@ extends CanvasLayer
 class_name HUD
 ## HUD - Zeigt Punktestand, Leben, Platzierung und Rundeninformationen
 ## Verwendet RaceTracker für Positions-Daten
+## Debug-Overlay für Fahrzeug-Metriken (Toggle mit F3)
 
 @onready var player_panels: Array[Control] = []
 @onready var round_label: Label = $RoundLabel
@@ -12,11 +13,18 @@ var player_colors: Array[Color] = []
 var vehicles_ref: Array[Vehicle] = []
 var race_tracker: RaceTracker
 
+# Debug-Overlay
+var debug_enabled: bool = false
+var debug_panel: PanelContainer = null
+var debug_labels: Dictionary = {}
+var debug_target_vehicle: Vehicle = null
+
 func _ready() -> void:
 	GameManager.round_started.connect(_on_round_started)
 	GameManager.round_ended.connect(_on_round_ended)
 	GameManager.player_eliminated.connect(_on_player_eliminated)
 	message_label.visible = false
+	_create_debug_panel()
 
 func setup(vehicles: Array[Vehicle], colors: Array[Color], tracker: RaceTracker) -> void:
 	player_count = vehicles.size()
@@ -103,6 +111,8 @@ func _create_player_panel(idx: int, player_color: Color, vehicle: Vehicle) -> Co
 
 func _process(_delta: float) -> void:
 	_update_displays()
+	_handle_debug_input()
+	_update_debug_panel()
 
 func _update_displays() -> void:
 	# Positions-Daten vom RaceTracker (falls verfügbar)
@@ -201,3 +211,107 @@ func _on_ammo_changed(current: int, max_ammo: int, player_idx: int) -> void:
 			weapon_label.add_theme_color_override("font_color", Color.YELLOW)
 		else:
 			weapon_label.add_theme_color_override("font_color", Color.ORANGE)
+
+
+# === DEBUG OVERLAY ===
+
+func _create_debug_panel() -> void:
+	debug_panel = PanelContainer.new()
+	debug_panel.name = "DebugPanel"
+	debug_panel.visible = false
+
+	# Position: Unten links
+	debug_panel.anchors_preset = Control.PRESET_BOTTOM_LEFT
+	debug_panel.offset_left = 10
+	debug_panel.offset_top = -220
+	debug_panel.offset_right = 280
+	debug_panel.offset_bottom = -10
+
+	# Style
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0, 0, 0, 0.8)
+	style.corner_radius_top_left = 5
+	style.corner_radius_top_right = 5
+	style.corner_radius_bottom_left = 5
+	style.corner_radius_bottom_right = 5
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 5
+	style.content_margin_bottom = 5
+	debug_panel.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.name = "VBox"
+	debug_panel.add_child(vbox)
+
+	# Labels erstellen
+	var labels = [
+		"Title",
+		"Speed",
+		"SlipAngle",
+		"YawRate",
+		"Drift",
+		"Grip",
+		"Steering",
+		"ForwardSpeed",
+		"LateralSpeed",
+		"Collision"
+	]
+
+	for label_name in labels:
+		var label = Label.new()
+		label.name = label_name
+		label.add_theme_font_size_override("font_size", 14)
+
+		if label_name == "Title":
+			label.text = "=== DEBUG (F3 toggle) ==="
+			label.add_theme_color_override("font_color", Color.YELLOW)
+		else:
+			label.text = "%s: -" % label_name
+			label.add_theme_color_override("font_color", Color.WHITE)
+
+		vbox.add_child(label)
+		debug_labels[label_name] = label
+
+	add_child(debug_panel)
+
+
+func _handle_debug_input() -> void:
+	if Input.is_action_just_pressed("ui_page_down") or Input.is_key_pressed(KEY_F3):
+		debug_enabled = not debug_enabled
+		debug_panel.visible = debug_enabled
+
+		# Ersten Spieler als Standard-Target
+		if debug_enabled and vehicles_ref.size() > 0:
+			debug_target_vehicle = vehicles_ref[0]
+
+
+func _update_debug_panel() -> void:
+	if not debug_enabled or not debug_target_vehicle:
+		return
+
+	var v = debug_target_vehicle
+	var m = v.metrics
+
+	debug_labels["Speed"].text = "Speed: %.1f km/h (%.1f m/s)" % [m.speed_kmh, m.speed_ms]
+	debug_labels["SlipAngle"].text = "Slip Angle: %.1f°" % m.slip_angle
+	debug_labels["YawRate"].text = "Yaw Rate: %.1f°/s" % m.yaw_rate
+
+	var drift_color = Color.GREEN if m.is_drifting else Color.RED
+	debug_labels["Drift"].text = "Drifting: %s" % ("YES" if m.is_drifting else "NO")
+	debug_labels["Drift"].add_theme_color_override("font_color", drift_color)
+
+	debug_labels["Grip"].text = "Effective Grip: %.2f" % m.effective_grip
+	debug_labels["Steering"].text = "Steer: %.2f -> %.2f" % [v.steering_input, m.steering_actual]
+	debug_labels["ForwardSpeed"].text = "Forward: %.1f m/s" % m.forward_speed
+	debug_labels["LateralSpeed"].text = "Lateral: %.1f m/s" % m.lateral_speed
+	debug_labels["Collision"].text = "Last Collision: %.1f" % m.last_collision_impulse
+
+
+func set_debug_target(vehicle: Vehicle) -> void:
+	debug_target_vehicle = vehicle
+
+
+func toggle_debug() -> void:
+	debug_enabled = not debug_enabled
+	debug_panel.visible = debug_enabled

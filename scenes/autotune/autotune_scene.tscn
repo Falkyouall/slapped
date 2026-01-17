@@ -1,0 +1,137 @@
+[gd_scene load_steps=10 format=3 uid="uid://cxautotunescene"]
+
+[ext_resource type="Script" path="res://scripts/autotune/autotune_scene_controller.gd" id="1_controller"]
+[ext_resource type="PackedScene" uid="uid://newvehicle2024" path="res://scenes/vehicles/vehicle.tscn" id="2_vehicle"]
+[ext_resource type="Script" path="res://scripts/autotune/autotune_runner.gd" id="3_runner"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+size = Vector2(200, 200)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(200, 0.1, 200)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.3, 0.3, 0.35, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_wall"]
+size = Vector3(30, 5, 2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_wall"]
+size = Vector3(30, 5, 2)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wall"]
+albedo_color = Color(0.8, 0.2, 0.2, 1)
+
+[node name="AutotuneScene" type="Node3D"]
+script = ExtResource("1_controller")
+
+[node name="TestFloor" type="StaticBody3D" parent="."]
+
+[node name="FloorMesh" type="MeshInstance3D" parent="TestFloor"]
+mesh = SubResource("PlaneMesh_floor")
+surface_material_override/0 = SubResource("StandardMaterial3D_floor")
+
+[node name="FloorCollision" type="CollisionShape3D" parent="TestFloor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+shape = SubResource("BoxShape3D_floor")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 30, 0)
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 60, 0)
+projection = 1
+size = 80.0
+
+[node name="TestVehicle" parent="." instance=ExtResource("2_vehicle")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+
+[node name="CollisionWall" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -50)
+
+[node name="WallMesh" type="MeshInstance3D" parent="CollisionWall"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+mesh = SubResource("BoxMesh_wall")
+surface_material_override/0 = SubResource("StandardMaterial3D_wall")
+
+[node name="WallCollision" type="CollisionShape3D" parent="CollisionWall"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+shape = SubResource("BoxShape3D_wall")
+
+[node name="AutotuneRunner" type="Node" parent="."]
+script = ExtResource("3_runner")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="DebugPanel" type="PanelContainer" parent="UI"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -410.0
+offset_right = 310.0
+offset_bottom = -10.0
+
+[node name="VBox" type="VBoxContainer" parent="UI/DebugPanel"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+text = "=== AUTOTUNE DEBUG ==="
+
+[node name="Status" type="Label" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+text = "Status: Bereit"
+
+[node name="Iteration" type="Label" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+text = "Iteration: 0 / 50"
+
+[node name="Separator1" type="HSeparator" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+
+[node name="VehicleMetrics" type="Label" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+text = "--- Fahrzeug ---"
+
+[node name="Speed" type="Label" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+text = "Speed: 0.0 km/h"
+
+[node name="SlipAngle" type="Label" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+text = "Slip: 0.0 deg"
+
+[node name="YawRate" type="Label" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+text = "Yaw: 0.0 deg/s"
+
+[node name="Drift" type="Label" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+text = "Drift: NO"
+
+[node name="Grip" type="Label" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+text = "Grip: 0.00"
+
+[node name="Steering" type="Label" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+text = "Steer: 0.0 -> 0.0"
+
+[node name="Separator2" type="HSeparator" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+
+[node name="CurrentTest" type="Label" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+text = "Test: -"
+
+[node name="TestProgress" type="ProgressBar" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+
+[node name="Separator3" type="HSeparator" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+
+[node name="Controls" type="Label" parent="UI/DebugPanel/VBox"]
+layout_mode = 2
+text = "[ENTER] Start  [ESC] Stop  [R] Reset"

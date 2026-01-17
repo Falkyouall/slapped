@@ -1,24 +1,20 @@
 extends RigidBody3D
 class_name Vehicle
-## Basis-Fahrzeug mit Arcade-Steuerung (RigidBody3D)
-## Physik-basierte Bewegung mit automatischen Kollisionen
+## Basis-Fahrzeug mit parametrischer Arcade-Steuerung (RigidBody3D)
+## Verwendet VehiclePhysicsConfig für alle Physik-Parameter
 
 signal destroyed()
 signal hit(damage: float)
 signal out_of_bounds(player_id: int)
 signal weapon_changed(weapon: Weapon)
 
+# Physik-Konfiguration
+@export var physics_config: VehiclePhysicsConfig
+
 # Leben
 var lives: int = 3
 var is_eliminated: bool = false
 var respawn_immunity: bool = false
-
-# Fahrzeug-Parameter
-@export var engine_power: float = 120.0
-@export var brake_power: float = 80.0
-@export var turn_speed: float = 4.0  # Direkte Rotation pro Sekunde
-@export var max_speed: float = 45.0
-@export var grip: float = 0.9  # 1.0 = kein Drift, 0.0 = voller Drift
 
 # Waffen-System
 var current_weapon: Weapon = null
@@ -41,7 +37,7 @@ var bot_waypoints: Array[Vector3] = []
 var bot_current_waypoint: int = 0
 var bot_waypoint_threshold: float = 25.0
 var bot_initialized: bool = false
-var bot_start_delay: float = 1.0  # Sekunden warten vor dem Losfahren
+var bot_start_delay: float = 1.0
 
 # Input-Actions (werden pro Spieler gesetzt)
 var input_accelerate: String = "accelerate"
@@ -53,11 +49,29 @@ var input_shoot: String = "shoot"
 # Interner Zustand
 var steering_input: float = 0.0
 var throttle_input: float = 0.0
+var steering_actual: float = 0.0  # Geglättete Lenkung
+var input_disabled: bool = false  # Für Autotune - deaktiviert Player-Input
+
+# Echtzeit-Metriken (read-only für Debug/Autotune)
+var metrics: Dictionary = {
+	"speed_kmh": 0.0,
+	"speed_ms": 0.0,
+	"slip_angle": 0.0,
+	"yaw_rate": 0.0,
+	"is_drifting": false,
+	"steering_actual": 0.0,
+	"last_collision_impulse": 0.0,
+	"effective_grip": 0.0,
+	"forward_speed": 0.0,
+	"lateral_speed": 0.0
+}
+
 
 func _ready() -> void:
 	add_to_group("vehicles")
 	lives = GameManager.config.max_lives
 	_setup_input_actions()
+	_load_physics_config()
 
 	# RigidBody3D Einstellungen
 	contact_monitor = true
@@ -65,6 +79,15 @@ func _ready() -> void:
 
 	# Kollisions-Signal verbinden
 	body_entered.connect(_on_body_entered)
+
+
+func _load_physics_config() -> void:
+	if not physics_config:
+		physics_config = load("res://resources/vehicle_physics.tres")
+		if not physics_config:
+			push_warning("Vehicle: Keine physics_config gefunden, verwende Standardwerte")
+			physics_config = VehiclePhysicsConfig.new()
+
 
 func _setup_input_actions() -> void:
 	var suffix = "" if player_id == 0 else "_p" + str(player_id + 1)
@@ -74,12 +97,18 @@ func _setup_input_actions() -> void:
 	input_right = "steer_right" + suffix
 	input_shoot = "shoot" + suffix
 
+
 func _physics_process(delta: float) -> void:
 	_handle_input(delta)
 	_apply_forces(delta)
 	_keep_upright(delta)
 
+
 func _handle_input(_delta: float) -> void:
+	# Bei deaktiviertem Input (Autotune) nicht überschreiben
+	if input_disabled:
+		return
+
 	if is_bot:
 		_handle_bot_input(_delta)
 		return
@@ -96,6 +125,7 @@ func _handle_input(_delta: float) -> void:
 		steering_input = -1.0
 	elif Input.is_action_pressed(input_right):
 		steering_input = 1.0
+
 
 func _handle_bot_input(delta: float) -> void:
 	# Start-Verzögerung
@@ -144,6 +174,7 @@ func _handle_bot_input(delta: float) -> void:
 	if abs(cross.y) > 0.5:
 		throttle_input = 0.6
 
+
 func _bot_find_best_waypoint() -> void:
 	var closest_idx = 0
 	var closest_dist = 999999.0
@@ -159,7 +190,11 @@ func _bot_find_best_waypoint() -> void:
 
 	bot_current_waypoint = (closest_idx + 1) % bot_waypoints.size()
 
+
 func _apply_forces(delta: float) -> void:
+	var cfg = physics_config
+
+	# Richtungsvektoren
 	var forward = -transform.basis.z
 	forward.y = 0
 	forward = forward.normalized()
@@ -168,54 +203,90 @@ func _apply_forces(delta: float) -> void:
 	right.y = 0
 	right = right.normalized()
 
-	# Aktuelle Geschwindigkeit
-	var current_forward_speed = linear_velocity.dot(forward)
-	var current_speed = linear_velocity.length()
+	# Geschwindigkeiten berechnen
+	var speed = linear_velocity.length()
+	var forward_vel = linear_velocity.dot(forward)
+	var lateral_vel = linear_velocity.dot(right)
 
-	# === LENKUNG (DIREKT - Arcade Style) ===
-	if current_speed > 2.0 and abs(steering_input) > 0.1:
-		var turn_amount = steering_input * turn_speed * delta
+	# Metriken aktualisieren
+	metrics.speed_ms = speed
+	metrics.speed_kmh = speed * 3.6
+	metrics.forward_speed = forward_vel
+	metrics.lateral_speed = lateral_vel
 
-		# Weniger Lenkung bei hoher Geschwindigkeit
-		var speed_factor = 1.0 - (current_speed / max_speed) * 0.3
-		turn_amount *= speed_factor
+	# === ANTRIEB ===
+	if throttle_input > 0:
+		if forward_vel < cfg.max_speed:
+			var force = forward * cfg.engine_force * throttle_input
+			apply_central_force(force)
+	elif throttle_input < 0:
+		if forward_vel > -cfg.max_speed * 0.4:
+			var force = forward * cfg.engine_force * throttle_input * 0.6
+			apply_central_force(force)
+
+	# === DRAG (quadratisch) ===
+	var drag = -linear_velocity * speed * cfg.drag_coefficient
+	apply_central_force(drag * mass)
+
+	# === LENKUNG (interpoliert mit Response-Time) ===
+	var speed_ratio = clampf(speed / cfg.max_speed, 0.0, 1.0)
+	var steer_gain = cfg.get_steer_gain(speed_ratio)
+
+	# Response-Time via exponential smoothing
+	var steer_alpha = cfg.get_steer_alpha(delta)
+	var target_steer = steering_input * steer_gain
+	steering_actual = lerpf(steering_actual, target_steer, steer_alpha)
+	metrics.steering_actual = steering_actual
+
+	# Lenkung nur anwenden wenn Geschwindigkeit > Minimum
+	if speed > 2.0 and absf(steering_actual) > 0.1:
+		var turn_amount = steering_actual * delta
 
 		# Bei Rückwärtsfahrt Lenkung umkehren
-		if current_forward_speed < -1.0:
+		if forward_vel < -1.0:
 			turn_amount *= -1
+
+		# Debuff bei Treffer
+		turn_amount *= get_steering_multiplier()
 
 		# Direkte Rotation anwenden
 		rotate_y(-turn_amount)
 
 		# Angular velocity auf Y begrenzen (für Kollisionen)
-		angular_velocity.y = clamp(angular_velocity.y, -3.0, 3.0)
+		angular_velocity.y = clampf(angular_velocity.y, -3.0, 3.0)
 	else:
-		# Dämpfe Y-Rotation wenn nicht aktiv gelenkt wird (verhindert permanentes Drehen nach Kollision)
+		# Dämpfe Y-Rotation wenn nicht aktiv gelenkt wird
 		angular_velocity.y *= 0.9
 
-	# === ANTRIEB ===
-	if throttle_input > 0:
-		if current_forward_speed < max_speed:
-			var force = forward * engine_power * throttle_input
-			apply_central_force(force)
-	elif throttle_input < 0:
-		if current_forward_speed > -max_speed * 0.4:
-			var force = forward * engine_power * throttle_input * 0.6
-			apply_central_force(force)
+	# === SLIP ANGLE ===
+	var slip_angle_rad = atan2(lateral_vel, maxf(absf(forward_vel), 0.1))
+	metrics.slip_angle = rad_to_deg(slip_angle_rad)
 
-	# === GRIP / DRIFT ===
-	var lateral_speed = linear_velocity.dot(right)
-	var effective_grip = grip
+	# === DRIFT DETECTION ===
+	metrics.is_drifting = cfg.is_drifting(metrics.slip_angle)
+
+	# === GRIP FORCE ===
+	var effective_grip = cfg.get_effective_grip(metrics.is_drifting)
+
+	# Kollisions-Debuff auf Grip anwenden
 	if is_collision_stunned:
 		effective_grip *= GameManager.config.collision_grip_debuff
-	var grip_force = right * (-lateral_speed * effective_grip * 10.0)
-	apply_central_force(grip_force * mass)
 
-	# === REIBUNG ===
-	if abs(throttle_input) < 0.1:
+	metrics.effective_grip = effective_grip
+
+	var grip_force = -lateral_vel * effective_grip * cfg.drift_recovery_strength
+	apply_central_force(right * grip_force * mass)
+
+	# === YAW DAMPING ===
+	angular_velocity.y -= angular_velocity.y * cfg.yaw_damping * delta
+	metrics.yaw_rate = rad_to_deg(angular_velocity.y)
+
+	# === REIBUNG (wenn kein Gas) ===
+	if absf(throttle_input) < 0.1:
 		var friction = -linear_velocity * 1.5
 		friction.y = 0
 		apply_central_force(friction * mass)
+
 
 func _keep_upright(_delta: float) -> void:
 	# Halte das Fahrzeug flach auf dem Boden
@@ -226,11 +297,14 @@ func _keep_upright(_delta: float) -> void:
 	angular_velocity.x *= 0.5
 	angular_velocity.z *= 0.5
 
+
 func take_damage(amount: float) -> void:
 	hit.emit(amount)
 
+
 func destroy() -> void:
 	destroyed.emit()
+
 
 func lose_life() -> void:
 	lives -= 1
@@ -238,11 +312,13 @@ func lose_life() -> void:
 		is_eliminated = true
 		destroyed.emit()
 
+
 func reset_to_spawn(spawn_pos: Vector3, spawn_rot: float = 0.0) -> void:
 	global_position = spawn_pos
 	rotation = Vector3(0, spawn_rot, 0)
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
+	steering_actual = 0.0
 	bot_initialized = false
 	bot_start_delay = 1.0
 	hit_debuff_timer = 0.0
@@ -250,11 +326,19 @@ func reset_to_spawn(spawn_pos: Vector3, spawn_rot: float = 0.0) -> void:
 	is_being_hit = false
 	collision_grip_debuff_timer = 0.0
 	is_collision_stunned = false
+	# Metriken zurücksetzen
+	for key in metrics.keys():
+		if metrics[key] is float:
+			metrics[key] = 0.0
+		elif metrics[key] is bool:
+			metrics[key] = false
+
 
 func _process(delta: float) -> void:
 	_handle_weapon_input()
 	_update_hit_debuff(delta)
 	_update_collision_debuff(delta)
+
 
 func _handle_weapon_input() -> void:
 	if not current_weapon:
@@ -267,12 +351,14 @@ func _handle_weapon_input() -> void:
 		if current_weapon.is_firing:
 			current_weapon.stop_firing()
 
+
 func _update_hit_debuff(delta: float) -> void:
 	if hit_debuff_timer > 0:
 		hit_debuff_timer -= delta
 		if hit_debuff_timer <= 0:
 			is_being_hit = false
 			hit_jerk_accumulator = 0.0
+
 
 # === WAFFEN-SYSTEM ===
 
@@ -286,6 +372,7 @@ func equip_weapon(weapon: Weapon) -> void:
 	weapon.weapon_empty.connect(_on_weapon_empty)
 	weapon_changed.emit(weapon)
 
+
 func unequip_weapon() -> void:
 	if not current_weapon:
 		return
@@ -297,8 +384,10 @@ func unequip_weapon() -> void:
 	current_weapon = null
 	weapon_changed.emit(null)
 
+
 func _on_weapon_empty() -> void:
 	unequip_weapon()
+
 
 # === TREFFER-REAKTION ===
 
@@ -322,10 +411,12 @@ func on_projectile_hit(attacker: Vehicle) -> void:
 
 	hit.emit(1.0)
 
+
 func get_steering_multiplier() -> float:
 	if is_being_hit:
 		return GameManager.weapon_config.hit_steering_multiplier
 	return 1.0
+
 
 # === KOLLISIONS-SYSTEM ===
 
@@ -334,6 +425,7 @@ func _update_collision_debuff(delta: float) -> void:
 		collision_grip_debuff_timer -= delta
 		if collision_grip_debuff_timer <= 0:
 			is_collision_stunned = false
+
 
 func _on_body_entered(body: Node) -> void:
 	if not body is Vehicle:
@@ -345,13 +437,18 @@ func _on_body_entered(body: Node) -> void:
 
 	_handle_vehicle_collision(other)
 
+
 func _handle_vehicle_collision(other: Vehicle) -> void:
 	var cfg = GameManager.config
+	var phys = physics_config
 
 	# Geschwindigkeiten berechnen
 	var my_speed = linear_velocity.length()
 	var other_speed = other.linear_velocity.length()
 	var speed_diff = my_speed - other_speed
+
+	# Kollisions-Impuls für Metriken speichern
+	metrics.last_collision_impulse = absf(speed_diff)
 
 	# Richtung vom anderen Auto zu mir
 	var collision_dir = (global_position - other.global_position).normalized()
@@ -368,7 +465,6 @@ func _handle_vehicle_collision(other: Vehicle) -> void:
 	other_forward = other_forward.normalized()
 
 	# === RAMMING BONUS ===
-	# Wenn ich deutlich schneller bin, bekommt das andere Auto extra Impuls
 	if speed_diff > cfg.collision_min_speed_diff:
 		var ram_direction = (other.global_position - global_position).normalized()
 		ram_direction.y = 0
@@ -377,10 +473,10 @@ func _handle_vehicle_collision(other: Vehicle) -> void:
 		var bonus_impulse = ram_direction * speed_diff * cfg.collision_ramming_multiplier
 
 		# Winkel-Bonus: Treffer von hinten/seitlich sind effektiver
-		var hit_angle = other_forward.dot(-ram_direction)  # -1 = von hinten, 1 = von vorne
+		var hit_angle = other_forward.dot(-ram_direction)
 
 		# Bonus wenn nicht frontal getroffen
-		if hit_angle < 0.5:  # Seiten- oder Hecktreffer
+		if hit_angle < 0.5:
 			bonus_impulse *= cfg.collision_side_bonus
 
 		# Impuls auf das andere Fahrzeug anwenden
@@ -389,7 +485,19 @@ func _handle_vehicle_collision(other: Vehicle) -> void:
 		# Grip-Debuff für das getroffene Fahrzeug
 		other.apply_collision_stun()
 
+
 func apply_collision_stun() -> void:
 	var cfg = GameManager.config
 	collision_grip_debuff_timer = cfg.collision_debuff_duration
 	is_collision_stunned = true
+
+
+# === DEBUG HELPERS ===
+
+func get_debug_info() -> String:
+	return "Speed: %.1f km/h | Slip: %.1f° | Drift: %s | Grip: %.2f" % [
+		metrics.speed_kmh,
+		metrics.slip_angle,
+		"YES" if metrics.is_drifting else "NO",
+		metrics.effective_grip
+	]

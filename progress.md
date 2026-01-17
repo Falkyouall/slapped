@@ -14,75 +14,65 @@
 - Zentrale Konfiguration: GameConfig + WeaponConfig
 
 ## Phase 3: Combat System ✅
+- MachineGun: 30 Schuss, 10/Sek
+- Power-Up System mit Respawn
+- Treffer-Reaktion: Lenkungs-Debuff + Zuck-Effekt
 
-### Waffen-System
-- **Base Weapon Klasse** für Erweiterbarkeit
-- **MachineGun**: 30 Schuss, 10/Sek, feuert aus Frontscheinwerfern
-- **Projektile**: 3D leuchtende Kugeln mit Kollision
-- Input: Space (P1), Enter (P2)
+## Kollisions-System ✅
+- Ramming mit Geschwindigkeits-basiertem Impuls
+- Grip-Debuff nach Kollision (30% für 0.4s)
 
-### Power-Up System
-- **WeaponPickup**: Schwebendes, rotierendes Pickup
-- Verschwindet nach Einsammeln bis zur nächsten Runde
-- 3 Pickups auf Teststrecke platziert
+## Parametrische Fahrphysik ✅
 
-### Treffer-Reaktion
-- **Lenkungs-Debuff**: Reduzierte Lenkfähigkeit während Beschuss
-- **Zuck-Effekt**: Auto zuckt links/rechts bei Treffern
-- **Winkel-Begrenzung**: Max 90° Fenster (±45°) für Zucken
-
-## Konfiguration
-
-### weapon_config.tres
+### VehiclePhysicsConfig (14 Parameter)
 ```
-MachineGun:
-  fire_rate: 10, ammo: 30, speed: 80, spread: 2°
-
-Hit Effects:
-  debuff_duration: 0.5s
-  steering_multiplier: 0.3 (30%)
-  jerk_strength: 0.15 rad
-  jerk_max_angle: 0.785 rad (45°)
-  jerk_randomness: 0.5
-
-PowerUps:
-  bob, rotation, respawn next round
+Antrieb:       engine_force, drag_coefficient, max_speed
+Lenkung:       steer_gain_low_speed, steer_gain_high_speed, steer_response_time
+Grip/Drift:    grip_base, grip_breakpoint_slip, slide_friction, drift_recovery_strength
+Yaw-Kontrolle: yaw_damping, spin_threshold
+Kollision:     collision_restitution, collision_energy_loss
 ```
+
+### Echtzeit-Metriken
+- speed_kmh, speed_ms, slip_angle, yaw_rate
+- is_drifting, effective_grip, steering_actual
+- forward_speed, lateral_speed, last_collision_impulse
+
+### Debug-Overlay
+- Toggle mit F3
+- Zeigt alle Metriken in Echtzeit
+
+## Autotune-Framework ✅
+
+### Tests
+- **TestAcceleration**: 0-60, 0-100, max_speed
+- **TestSteering**: Response-Time, Überschwingen, High-Speed Handling
+- **TestDrift**: Drift-Breakpoint, Slip-Winkel, Recovery-Zeit
+- **TestCollision**: Restgeschwindigkeit, Spin-Out-Erkennung
+
+### Regelsystem
+- Max ±5% Anpassung pro Iteration
+- Bis zu 50 Iterationen
+- Speichert finale Config als .tres
+
+### Autotune-Szene
+- `scenes/autotune/autotune_scene.tscn`
+- [ENTER] Start, [ESC] Stop, [R] Reset
 
 ## Wichtige Dateien
 
 | Datei | Beschreibung |
 |-------|--------------|
-| `scripts/weapons/weapon.gd` | Base Weapon Klasse |
-| `scripts/weapons/machine_gun.gd` | MachineGun |
-| `scripts/weapons/projectile.gd` | Projektil |
-| `scripts/powerups/power_up.gd` | Base PowerUp |
-| `scripts/powerups/weapon_pickup.gd` | Waffen-Pickup |
-| `resources/weapon_config.tres` | Waffen-Konfiguration |
-
-## Kollisions-Impulsübertragung ✅
-
-### Ramming-System
-- **Geschwindigkeits-basiert**: Schnelleres Auto überträgt mehr Impuls
-- **Min Speed Diff**: 5.0 (erst ab dieser Differenz gibt's Bonus)
-- **Ramming Multiplier**: 2.5x Basis-Impuls
-- **Side Bonus**: 1.5x bei Seiten-/Hecktreffer
-
-### Grip-Debuff nach Kollision
-- **Grip Debuff**: 30% des normalen Grips
-- **Duration**: 0.4 Sekunden
-- Getroffenes Auto verliert temporär Kontrolle
-
-### PhysicsMaterial
-- Friction: 0.7 (vorher 0.5)
-- Bounce: 0.4 (vorher 0.3)
-
-### Bugfix: Persistente Rotation ✅
-- **Problem**: Auto drehte sich nach Seitenkollision endlos weiter
-- **Ursache**: `angular_velocity.y` wurde nur beim aktiven Lenken gedämpft
-- **Fix**: Y-Rotation mit 0.9-Multiplikator dämpfen wenn nicht gelenkt wird
+| `scripts/autoload/vehicle_physics_config.gd` | 14-Parameter Resource |
+| `resources/vehicle_physics.tres` | Standard-Konfiguration |
+| `scripts/vehicles/vehicle.gd` | Parametrische Physik + Metriken |
+| `scripts/autotune/autotune_runner.gd` | Autotune Controller |
+| `scripts/autotune/autotune_rules.gd` | Regelbasierte Anpassung |
+| `scripts/autotune/tests/*.gd` | 4 Test-Klassen |
+| `scripts/ui/hud.gd` | HUD + Debug-Overlay |
 
 ## Nächste Schritte
+- Autotune testen und Zielwerte feinjustieren
 - Visuelles Feedback (Mündungsfeuer, Treffer-Funken)
 - Sound-Effekte
 - Weitere Waffen (Rakete, Boost, Schild, Mine)
