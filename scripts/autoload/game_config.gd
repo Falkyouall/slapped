@@ -27,3 +27,11 @@ class_name GameConfig
 @export var vehicle_brake_power: float = 80.0
 @export var vehicle_gravity: float = 40.0
 @export_range(0.0, 1.0) var vehicle_collision_bounce: float = 0.25
+
+# Kollisions-Impuls
+@export_group("Collision Physics")
+@export var collision_ramming_multiplier: float = 2.5  # Bonus-Impuls bei Rammen
+@export var collision_min_speed_diff: float = 5.0  # Min Geschwindigkeitsdiff für Bonus
+@export var collision_grip_debuff: float = 0.3  # Grip-Multiplikator nach Kollision (0.3 = 30%)
+@export var collision_debuff_duration: float = 0.4  # Dauer des Grip-Debuffs in Sekunden
+@export var collision_side_bonus: float = 1.5  # Extra Impuls bei Seiten-/Hecktreffer

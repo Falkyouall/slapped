@@ -18,9 +18,6 @@ size = Vector3(60, 4, 4)
 [sub_resource type="BoxMesh" id="wall_mesh"]
 size = Vector3(1, 4, 4)
 
-[sub_resource type="BoxShape3D" id="shape_kicker"]
-size = Vector3(14, 0.5, 16)
-
 [sub_resource type="Environment" id="env"]
 background_mode = 1
 background_color = Color(0.15, 0.15, 0.2, 1)
@@ -32,6 +29,7 @@ ambient_light_color = Color(0.4, 0.4, 0.5, 1)
 [node name="Ground" type="Node3D" parent="."]
 
 [node name="Floor" type="CSGBox3D" parent="Ground"]
+use_collision = true
 size = Vector3(280, 0.5, 180)
 
 [node name="OuterWalls" type="Node3D" parent="."]
@@ -139,20 +137,11 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 105, 0, -78)
 
 [node name="RacingLine" type="Path3D" parent="."]
 script = ExtResource("racing_line_script")
-racing_points = Array[Vector3]([Vector3(105, 0, -62.5), Vector3(0, 0, -62.5), Vector3(-105, 0, -62.5), Vector3(-105, 0, 0), Vector3(-105, 0, 62.5), Vector3(0, 0, 62.5), Vector3(105, 0, 62.5), Vector3(105, 0, 0)])
+show_line = true
+line_color = Color(0.2, 1.0, 0.4, 1.0)
+line_width = 2.0
+racing_points = Array[Vector3]([Vector3(105, 0, -62.5), Vector3(70, 0, -62.5), Vector3(35, 0, -62.5), Vector3(0, 0, -62.5), Vector3(-35, 0, -62.5), Vector3(-70, 0, -62.5), Vector3(-95, 0, -62.5), Vector3(-110, 0, -55), Vector3(-115, 0, -37), Vector3(-115, 0, -18), Vector3(-115, 0, 0), Vector3(-115, 0, 18), Vector3(-115, 0, 37), Vector3(-110, 0, 55), Vector3(-95, 0, 62.5), Vector3(-70, 0, 62.5), Vector3(-35, 0, 62.5), Vector3(0, 0, 62.5), Vector3(35, 0, 62.5), Vector3(70, 0, 62.5), Vector3(95, 0, 62.5), Vector3(110, 0, 55), Vector3(115, 0, 37), Vector3(115, 0, 18), Vector3(115, 0, 0), Vector3(115, 0, -18), Vector3(115, 0, -37), Vector3(110, 0, -55)])
 
-[node name="Kickers" type="Node3D" parent="."]
-
-[node name="Kicker1" type="StaticBody3D" parent="Kickers"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, -53)
-
-[node name="RampMesh" type="CSGBox3D" parent="Kickers/Kicker1"]
-transform = Transform3D(1, 0, 0, 0, 0.906, -0.423, 0, 0.423, 0.906, 0, 1.5, 0)
-size = Vector3(14, 0.5, 16)
-
-[node name="RampCollision" type="CollisionShape3D" parent="Kickers/Kicker1"]
-transform = Transform3D(1, 0, 0, 0, 0.906, -0.423, 0, 0.423, 0.906, 0, 1.5, 0)
-shape = SubResource("shape_kicker")
 
 [node name="PowerUps" type="Node3D" parent="."]
 

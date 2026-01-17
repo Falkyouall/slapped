@@ -103,6 +103,15 @@ func _create_vehicle(idx: int) -> Vehicle:
 	vehicle.global_position = spawn.global_position
 	vehicle.rotation.y = spawn.rotation.y
 
+	# Spieler 2+ als Bot aktivieren (zum Testen)
+	if idx >= 1:
+		vehicle.is_bot = true
+		var racing_line = $Track/RacingLine
+		if racing_line and racing_line.has_method("get_racing_points"):
+			vehicle.bot_waypoints = racing_line.get_racing_points()
+		elif racing_line and "racing_points" in racing_line:
+			vehicle.bot_waypoints = racing_line.racing_points
+
 	# Farbe temporär deaktiviert zum Testen
 	#var body_node = vehicle.get_node_or_null("Body")
 	#if body_node:

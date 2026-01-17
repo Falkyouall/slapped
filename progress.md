@@ -60,6 +60,28 @@ PowerUps:
 | `scripts/powerups/weapon_pickup.gd` | Waffen-Pickup |
 | `resources/weapon_config.tres` | Waffen-Konfiguration |
 
+## Kollisions-Impulsübertragung ✅
+
+### Ramming-System
+- **Geschwindigkeits-basiert**: Schnelleres Auto überträgt mehr Impuls
+- **Min Speed Diff**: 5.0 (erst ab dieser Differenz gibt's Bonus)
+- **Ramming Multiplier**: 2.5x Basis-Impuls
+- **Side Bonus**: 1.5x bei Seiten-/Hecktreffer
+
+### Grip-Debuff nach Kollision
+- **Grip Debuff**: 30% des normalen Grips
+- **Duration**: 0.4 Sekunden
+- Getroffenes Auto verliert temporär Kontrolle
+
+### PhysicsMaterial
+- Friction: 0.7 (vorher 0.5)
+- Bounce: 0.4 (vorher 0.3)
+
+### Bugfix: Persistente Rotation ✅
+- **Problem**: Auto drehte sich nach Seitenkollision endlos weiter
+- **Ursache**: `angular_velocity.y` wurde nur beim aktiven Lenken gedämpft
+- **Fix**: Y-Rotation mit 0.9-Multiplikator dämpfen wenn nicht gelenkt wird
+
 ## Nächste Schritte
 - Visuelles Feedback (Mündungsfeuer, Treffer-Funken)
 - Sound-Effekte
