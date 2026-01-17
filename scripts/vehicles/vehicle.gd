@@ -19,10 +19,13 @@ var respawn_immunity: bool = false
 # Waffen-System
 var current_weapon: Weapon = null
 
-# Treffer-Reaktion
-var hit_debuff_timer: float = 0.0
-var hit_jerk_accumulator: float = 0.0
-var is_being_hit: bool = false
+# Treffer-Reaktion (Wrecked-Style Wobble)
+var hit_consecutive_count: int = 0        # Anzahl aufeinanderfolgender Treffer
+var hit_wobble_intensity: float = 0.0     # Aktuelle Wackel-Intensität
+var hit_wobble_direction: int = 1         # Wechselt zwischen -1 und 1
+var hit_wobble_timer: float = 0.0         # Timer für Wackel-Rhythmus
+var hit_decay_timer: float = 0.0          # Zeit seit letztem Treffer
+var is_steering_impaired: bool = false    # Lenkungs-Debuff aktiv (ab 5+ Treffer)
 
 # Kollisions-Grip-Debuff
 var collision_grip_debuff_timer: float = 0.0
@@ -63,7 +66,9 @@ var metrics: Dictionary = {
 	"last_collision_impulse": 0.0,
 	"effective_grip": 0.0,
 	"forward_speed": 0.0,
-	"lateral_speed": 0.0
+	"lateral_speed": 0.0,
+	"hit_count": 0,
+	"wobble_intensity": 0.0
 }
 
 
@@ -321,9 +326,14 @@ func reset_to_spawn(spawn_pos: Vector3, spawn_rot: float = 0.0) -> void:
 	steering_actual = 0.0
 	bot_initialized = false
 	bot_start_delay = 1.0
-	hit_debuff_timer = 0.0
-	hit_jerk_accumulator = 0.0
-	is_being_hit = false
+	# Wobble-System zurücksetzen
+	hit_consecutive_count = 0
+	hit_wobble_intensity = 0.0
+	hit_wobble_direction = 1
+	hit_wobble_timer = 0.0
+	hit_decay_timer = 0.0
+	is_steering_impaired = false
+	# Kollisions-Debuff zurücksetzen
 	collision_grip_debuff_timer = 0.0
 	is_collision_stunned = false
 	# Metriken zurücksetzen
@@ -336,7 +346,7 @@ func reset_to_spawn(spawn_pos: Vector3, spawn_rot: float = 0.0) -> void:
 
 func _process(delta: float) -> void:
 	_handle_weapon_input()
-	_update_hit_debuff(delta)
+	_update_hit_wobble(delta)
 	_update_collision_debuff(delta)
 
 
@@ -352,12 +362,38 @@ func _handle_weapon_input() -> void:
 			current_weapon.stop_firing()
 
 
-func _update_hit_debuff(delta: float) -> void:
-	if hit_debuff_timer > 0:
-		hit_debuff_timer -= delta
-		if hit_debuff_timer <= 0:
-			is_being_hit = false
-			hit_jerk_accumulator = 0.0
+func _update_hit_wobble(delta: float) -> void:
+	# Decay Timer - nach 0.5s ohne Treffer beginnt Abbau
+	if hit_decay_timer > 0:
+		hit_decay_timer -= delta
+	else:
+		# Treffer-Combo und Wobble abbauen
+		hit_consecutive_count = maxi(hit_consecutive_count - 1, 0)
+		hit_wobble_intensity *= 0.92  # Langsam abklingen
+
+		if hit_consecutive_count < 5:
+			is_steering_impaired = false
+
+		if hit_wobble_intensity < 0.01:
+			hit_wobble_intensity = 0.0
+			hit_consecutive_count = 0
+
+	# Wobble anwenden wenn Intensität > 0
+	if hit_wobble_intensity > 0.01:
+		hit_wobble_timer += delta
+
+		# Wackel-Frequenz: ~10 Hz
+		if hit_wobble_timer >= 0.1:
+			hit_wobble_timer = 0.0
+			hit_wobble_direction *= -1
+
+			# Torque-Impuls für Wackeln
+			var wobble_strength = hit_wobble_intensity * hit_wobble_direction * 80.0
+			apply_torque_impulse(Vector3(0, wobble_strength, 0))
+
+	# Metriken aktualisieren
+	metrics.hit_count = hit_consecutive_count
+	metrics.wobble_intensity = hit_wobble_intensity
 
 
 # === WAFFEN-SYSTEM ===
@@ -395,26 +431,31 @@ func on_projectile_hit(attacker: Vehicle) -> void:
 	if respawn_immunity or is_eliminated:
 		return
 
-	var cfg = GameManager.weapon_config
+	# Treffer-Counter erhöhen
+	hit_consecutive_count += 1
+	hit_decay_timer = 0.5  # 0.5s Zeit bis nächster Treffer zählt als Combo
 
-	hit_debuff_timer = cfg.hit_steering_debuff_duration
-	is_being_hit = true
+	# Wobble-Intensität aufbauen (max 1.0)
+	hit_wobble_intensity = minf(hit_wobble_intensity + 0.15, 1.0)
 
-	hit_jerk_accumulator += cfg.hit_jerk_strength
-	hit_jerk_accumulator = minf(hit_jerk_accumulator, cfg.hit_jerk_max_angle)
+	# Ab 5 Treffern: Lenkungs-Debuff aktivieren
+	if hit_consecutive_count >= 5:
+		is_steering_impaired = true
 
-	var jerk_amount = cfg.hit_jerk_strength * (1.0 + randf() * cfg.hit_jerk_randomness)
-	var jerk_dir = 1.0 if randf() > 0.5 else -1.0
-
-	# Impuls statt direkter Rotation
-	apply_torque_impulse(Vector3(0, jerk_amount * jerk_dir * 50.0, 0))
+	# Kleiner Rückstoß in Schussrichtung
+	if attacker and is_instance_valid(attacker):
+		var knockback_dir = (global_position - attacker.global_position).normalized()
+		knockback_dir.y = 0
+		apply_central_impulse(knockback_dir * 3.0)
 
 	hit.emit(1.0)
 
 
 func get_steering_multiplier() -> float:
-	if is_being_hit:
-		return GameManager.weapon_config.hit_steering_multiplier
+	if is_steering_impaired:
+		# Stärke des Debuffs basiert auf Treffer-Anzahl (5+ Treffer)
+		var debuff_strength = minf((hit_consecutive_count - 4) * 0.1, 0.5)
+		return 1.0 - debuff_strength  # 0.9 bei 5 Treffern, 0.5 bei 9+ Treffern
 	return 1.0
 
 

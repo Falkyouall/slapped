@@ -12,6 +12,8 @@ friction = 0.7
 bounce = 0.4
 
 [node name="Vehicle" type="RigidBody3D"]
+collision_layer = 1
+collision_mask = 1
 mass = 1.5
 physics_material_override = SubResource("PhysicsMaterial_vehicle")
 gravity_scale = 1.0

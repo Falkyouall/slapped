@@ -4,16 +4,16 @@
 
 [resource]
 script = ExtResource("1_script")
-mg_fire_rate = 10.0
-mg_ammo = 30
-mg_projectile_speed = 80.0
+mg_fire_rate = 20.0
+mg_ammo = 40
+mg_projectile_speed = 100.0
 mg_projectile_size = 0.3
 mg_spread = 2.0
-hit_steering_debuff_duration = 0.5
-hit_steering_multiplier = 0.3
-hit_jerk_strength = 0.15
-hit_jerk_max_angle = 0.785
-hit_jerk_randomness = 0.5
+hit_steering_debuff_duration = 0.6
+hit_steering_multiplier = 0.2
+hit_jerk_strength = 0.4
+hit_jerk_max_angle = 1.2
+hit_jerk_randomness = 0.6
 projectile_lifetime = 3.0
 projectile_color = Color(1, 0.9, 0.3, 1)
 pickup_respawn_next_round = true

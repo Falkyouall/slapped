@@ -223,8 +223,8 @@ func _create_debug_panel() -> void:
 	# Position: Unten links
 	debug_panel.anchors_preset = Control.PRESET_BOTTOM_LEFT
 	debug_panel.offset_left = 10
-	debug_panel.offset_top = -220
-	debug_panel.offset_right = 280
+	debug_panel.offset_top = -200
+	debug_panel.offset_right = 260
 	debug_panel.offset_bottom = -10
 
 	# Style
@@ -253,9 +253,8 @@ func _create_debug_panel() -> void:
 		"Drift",
 		"Grip",
 		"Steering",
-		"ForwardSpeed",
-		"LateralSpeed",
-		"Collision"
+		"HitCount",
+		"Wobble"
 	]
 
 	for label_name in labels:
@@ -302,10 +301,13 @@ func _update_debug_panel() -> void:
 	debug_labels["Drift"].add_theme_color_override("font_color", drift_color)
 
 	debug_labels["Grip"].text = "Effective Grip: %.2f" % m.effective_grip
-	debug_labels["Steering"].text = "Steer: %.2f -> %.2f" % [v.steering_input, m.steering_actual]
-	debug_labels["ForwardSpeed"].text = "Forward: %.1f m/s" % m.forward_speed
-	debug_labels["LateralSpeed"].text = "Lateral: %.1f m/s" % m.lateral_speed
-	debug_labels["Collision"].text = "Last Collision: %.1f" % m.last_collision_impulse
+	debug_labels["Steering"].text = "Steer: %.2f -> %.2f (x%.1f)" % [v.steering_input, m.steering_actual, v.get_steering_multiplier()]
+
+	# Hit/Wobble Anzeige
+	var hit_color = Color.RED if v.is_steering_impaired else Color.WHITE
+	debug_labels["HitCount"].text = "Hits: %d %s" % [m.hit_count, "(IMPAIRED)" if v.is_steering_impaired else ""]
+	debug_labels["HitCount"].add_theme_color_override("font_color", hit_color)
+	debug_labels["Wobble"].text = "Wobble: %.0f%%" % (m.wobble_intensity * 100)
 
 
 func set_debug_target(vehicle: Vehicle) -> void:
