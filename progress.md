@@ -105,3 +105,4 @@ Slipstream:    slipstream_range, slipstream_angle, slipstream_max_drag_reduction
 - Linux & Web Build Automation mit `just` (justfile)
 - Docker-basierte Builds für Linux und HTML5
 - Lokaler Web-Server via Docker (`just serve-web`)
+- CI/CD: GitHub Action für Auto-Deployment zu GitHub Pages (`.github/workflows/deploy-web.yml`)
